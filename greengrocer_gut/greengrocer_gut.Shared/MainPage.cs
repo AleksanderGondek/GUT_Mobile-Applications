@@ -28,11 +28,6 @@ namespace greengrocer_gut
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, AuthenticateAsync);
             };
         }
-        private async void MainPageLoaded(object sender, Windows.UI.Xaml.RoutedEventArgs e)
-        {
-            //TODO: Refresh
-            //await RefreshTodoItems();
-        }
 
         public async void AuthenticateAsync()
         {
@@ -52,6 +47,8 @@ namespace greengrocer_gut
                 var dialog = new MessageDialog(message);
                 dialog.Commands.Add(new UICommand("OK"));
                 await dialog.ShowAsync();
+
+                await RefreshTodoItems();
             }
         }
 
@@ -63,7 +60,7 @@ namespace greengrocer_gut
 
         private async Task<Groceries> FindGroceryByName(string itemName)
         {
-            var list = await _groceriesTable.Where(x => x.Name.Equals(itemName) && x.OwnerUserId.Equals(_user.UserId)).ToListAsync();
+            var list = await _groceriesTable.Where(x => x.Name == itemName && x.OwnerUserId ==_user.UserId).ToListAsync();
             return list.Count > 0 ? list.FirstOrDefault() : null;
         }
 
@@ -73,7 +70,7 @@ namespace greengrocer_gut
             try
             {
                 _items = await _groceriesTable
-                    .Where(x => string.Equals(x.OwnerUserId, _user.UserId))
+                    .Where(x => x.OwnerUserId == _user.UserId)
                     .ToCollectionAsync();
             }
             catch (MobileServiceInvalidOperationException e)

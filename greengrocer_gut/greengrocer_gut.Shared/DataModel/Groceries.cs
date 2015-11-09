@@ -13,7 +13,6 @@ namespace greengrocer_gut
         public int Quantity { get; set; }
         [JsonProperty(PropertyName = "tags")]
         public string Tags { get; set; }
-        [JsonProperty(PropertyName = "owneruserid")]
         public string OwnerUserId { get; set; }
     }
 }

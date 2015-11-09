@@ -1,20 +1,12 @@
-﻿using Microsoft.WindowsAzure.MobileServices;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+﻿using System;
+using System.Diagnostics;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+using Windows.Globalization;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
+using Microsoft.WindowsAzure.MobileServices;
 
 namespace greengrocer_gut
 {
@@ -47,7 +39,7 @@ namespace greengrocer_gut
             this.Suspending += OnSuspending;
 
 #if !WINDOWS_PHONE_APP
-                RequestedTheme = ApplicationTheme.Light;    
+                RequestedTheme = ApplicationTheme.Dark;    
 #endif
         }
 
@@ -60,7 +52,7 @@ namespace greengrocer_gut
         {            
 
 #if DEBUG
-            if (System.Diagnostics.Debugger.IsAttached)
+            if (Debugger.IsAttached)
             {
                 this.DebugSettings.EnableFrameRateCounter = true;
             }
@@ -75,7 +67,7 @@ namespace greengrocer_gut
                 // Create a Frame to act as the navigation context and navigate to the first page
                 rootFrame = new Frame();
                 // Set the default language
-                rootFrame.Language = Windows.Globalization.ApplicationLanguages.Languages[0];
+                rootFrame.Language = ApplicationLanguages.Languages[0];
 
                 rootFrame.NavigationFailed += OnNavigationFailed;
 
@@ -128,7 +120,7 @@ namespace greengrocer_gut
             base.OnActivated(args);
             if (args.Kind == ActivationKind.WebAuthenticationBrokerContinuation)
             {
-                App.MobileService.LoginComplete(args as WebAuthenticationBrokerContinuationEventArgs);
+                MobileService.LoginComplete(args as WebAuthenticationBrokerContinuationEventArgs);
             }
         }
     }
