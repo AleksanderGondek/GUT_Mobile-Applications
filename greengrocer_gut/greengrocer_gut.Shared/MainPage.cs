@@ -6,6 +6,8 @@ using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Microsoft.WindowsAzure.MobileServices;
+using Microsoft.WindowsAzure.MobileServices.SQLiteStore;  // offline sync
+using Microsoft.WindowsAzure.MobileServices.Sync;         // offline sync
 
 
 namespace greengrocer_gut
@@ -14,7 +16,8 @@ namespace greengrocer_gut
     {
         private MobileServiceCollection<Groceries, Groceries> _items;
         private MobileServiceUser _user;
-        private readonly IMobileServiceTable<Groceries> _groceriesTable = App.MobileService.GetTable<Groceries>();
+        //private readonly IMobileServiceTable<Groceries> _groceriesTable = App.MobileService.GetTable<Groceries>();
+        private IMobileServiceSyncTable<Groceries> _groceriesTable = App.MobileService.GetSyncTable<Groceries>(); // offline sync
 
         public MainPage()
         {
@@ -36,7 +39,9 @@ namespace greengrocer_gut
                 string message;
                 try
                 {
-                    _user = await App.MobileService.LoginAsync(MobileServiceAuthenticationProvider.Twitter);
+                    //_user = await App.MobileService.LoginAsync(MobileServiceAuthenticationProvider.Twitter);
+                    // Temporary just used fixed user
+                    _user = new MobileServiceUser("SonsOfAnarchy");
                     message = $"You are now signed in - {_user.UserId}";
                 }
                 catch (InvalidOperationException)
@@ -48,6 +53,7 @@ namespace greengrocer_gut
                 dialog.Commands.Add(new UICommand("OK"));
                 await dialog.ShowAsync();
 
+                await InitLocalStoreAsync(); // offline sync
                 await RefreshTodoItems();
             }
         }
@@ -56,10 +62,12 @@ namespace greengrocer_gut
         {
             await _groceriesTable.InsertAsync(todoItem);
             _items.Add(todoItem);
+            //await SyncAsync(); // offline sync
         }
 
         private async Task<Groceries> FindGroceryByName(string itemName)
         {
+            //await SyncAsync(); // offline sync
             var list = await _groceriesTable.Where(x => x.Name == itemName && x.OwnerUserId ==_user.UserId).ToListAsync();
             return list.Count > 0 ? list.FirstOrDefault() : null;
         }
@@ -92,6 +100,8 @@ namespace greengrocer_gut
         private async Task UpdateCheckedTodoItem(Groceries item)
         {
             await _groceriesTable.UpdateAsync(item);
+            //await SyncAsync(); // offline sync
+
             _items.Remove(item);
             ListItems.Focus(FocusState.Unfocused);
 
@@ -101,6 +111,10 @@ namespace greengrocer_gut
         private async void ButtonRefresh_Click(object sender, RoutedEventArgs e)
         {
             ButtonRefresh.IsEnabled = false;
+            if(sender != null && e != null)
+            {
+                await SyncAsync(); // offline sync
+            }
             await RefreshTodoItems();
             ButtonRefresh.IsEnabled = true;
         }
@@ -144,6 +158,7 @@ namespace greengrocer_gut
 
                 var todoItem = new Groceries {Id = Guid.NewGuid().ToString("N"), Name = TextInput.Text, Quantity = quantity, OwnerUserId = _user.UserId};
                 await InsertTodoItem(todoItem);
+                //await SyncAsync(); // offline sync
             }
             catch (Exception) {}
             finally
@@ -214,6 +229,7 @@ namespace greengrocer_gut
             {
                 _items.Remove(groceryItem);
                 await _groceriesTable.DeleteAsync(groceryItem);
+                //await SyncAsync(); // offline sync
             }
         }
 
@@ -242,6 +258,50 @@ namespace greengrocer_gut
             {
                 _items.Remove(groceryItem);
                 await _groceriesTable.DeleteAsync(groceryItem);
+                //await SyncAsync(); // offline sync
+            }
+        }
+
+        private async Task InitLocalStoreAsync()
+        {
+            if (!App.MobileService.SyncContext.IsInitialized)
+            {
+                var store = new MobileServiceSQLiteStore("greengrocer-gut_db.db");
+                store.DefineTable<Groceries>();
+                await App.MobileService.SyncContext.InitializeAsync(store, new SyncHandler(App.MobileService));
+            }
+
+            //await SyncAsync();
+        }
+
+        private async Task SyncAsync()
+        {
+
+            String errorString = null;
+
+            try
+            {
+                await _groceriesTable.PullAsync("greengrocer_gut.Groceries", _groceriesTable.CreateQuery());
+                await App.MobileService.SyncContext.PushAsync();
+                await _groceriesTable.PullAsync("greengrocer_gut.Groceries", _groceriesTable.CreateQuery()); // first param is query ID, used for incremental sync
+            }
+
+            catch (MobileServicePushFailedException ex)
+            {
+                errorString = "Push failed because of sync errors: " +
+                  ex.PushResult.Errors.Count + " errors, message: " + ex.Message;
+            }
+            catch (Exception ex)
+            {
+                errorString = "Pull failed: " + ex.Message +
+                  "\n\nIf you are still in an offline scenario, " +
+                  "you can try your Pull again when connected with your Mobile Serice.";
+            }
+
+            if (errorString != null)
+            {
+                MessageDialog d = new MessageDialog(errorString);
+                await d.ShowAsync();
             }
         }
     }
