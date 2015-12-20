@@ -156,7 +156,7 @@ namespace greengrocer_gut
                 var quantity = Convert.ToInt32(QuantityInput.Text);
                 if (quantity <= 0) return;
 
-                var todoItem = new Groceries {Id = Guid.NewGuid().ToString("N"), Name = TextInput.Text, Quantity = quantity, OwnerUserId = _user.UserId};
+                var todoItem = new Groceries {Id = Guid.NewGuid().ToString("N"), Name = TextInput.Text, Quantity = quantity, OwnerUserId = _user.UserId, Before = 0};
                 await InsertTodoItem(todoItem);
                 //await SyncAsync(); // offline sync
             }
