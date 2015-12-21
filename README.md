@@ -1,5 +1,6 @@
 # GUT_Mobile-Applications
-Mobile app project for GUT classes, representing communication between mobile app and server (with focus on data synchronization)
+Mobile app project for GUT classes, representing communication between mobile app and server (with focus on data synchronization).
+Currently added after-offline sync feature with conflits resolving.
 
 Used technologies:
 ===
@@ -10,5 +11,4 @@ Whole project was created using [Microsoft Azure Mobile Service](https://azure.m
 
 Next Steps:
 ===
-1. Testing out Mobile App after-offline sync feature
-2. Coming up with creative way of API versioning in respect to /tables/ endpoint in Mobile App
+1. Coming up with creative way of API versioning in respect to /tables/ endpoint in Mobile App
