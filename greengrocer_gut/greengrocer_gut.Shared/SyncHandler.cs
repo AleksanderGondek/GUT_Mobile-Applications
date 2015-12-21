@@ -8,6 +8,7 @@ using Microsoft.WindowsAzure.MobileServices;
 using Microsoft.WindowsAzure.MobileServices.Sync;
 using Newtonsoft.Json.Linq;
 using Windows.UI.Popups;
+using System.Linq;
 
 namespace greengrocer_gut
 {
@@ -73,25 +74,53 @@ namespace greengrocer_gut
                         return serverValue;
                     }
 
-                    IUICommand command = await ShowConflictDialog(localItem, serverValue);
-                    if (command.Label == LOCAL_VERSION)
+                    if(serverItem.Quantity != localItem.Quantity)
                     {
+                        // this way we have a number to add to , sign will be good
+                        int delta = localItem.Quantity - localItem.Before;
+                        localItem.Quantity = serverItem.Quantity + delta;
+                        localItem.Before = 0;
+
+                        var table = client.GetSyncTable<Groceries>();
+                        var list = await table.Where(x => x.Id == localItem.Id ).ToListAsync();
+                        var element = list.Count > 0 ? list.FirstOrDefault() : null;
+                        element.Version = serverItem.Version;
+                        await table.UpdateAsync(element);
+
                         // Overwrite the server version and try the operation again by continuing the loop
-                        operation.Item[MobileServiceSystemColumns.Version] = serverValue[MobileServiceSystemColumns.Version];
-                        if (error is MobileServiceConflictException) // change operation from Insert to Update
-                        {
-                            tryOperation = async () => await operation.Table.UpdateAsync(operation.Item) as JObject;
-                        }
+                        //operation.Item[MobileServiceSystemColumns.Version] = serverValue[MobileServiceSystemColumns.Version];
+                        //if (error is MobileServiceConflictException) // change operation from Insert to Update
+                        //{
+                        //    tryOperation = async () => await operation.Table.UpdateAsync(operation.Item) as JObject;
+                        //}
                         continue;
                     }
-                    else if (command.Label == SERVER_VERSION)
-                    {
-                        return (JObject)serverValue;
-                    }
-                    else
-                    {
-                        operation.AbortPush();
-                    }
+
+                    //if (serverItem.Name != localItem.Name)
+                    //{
+
+                    //}
+
+
+                    //IUICommand command = await ShowConflictDialog(localItem, serverValue);
+                    //if (command.Label == LOCAL_VERSION)
+                    //{
+                    //    // Overwrite the server version and try the operation again by continuing the loop
+                    //    operation.Item[MobileServiceSystemColumns.Version] = serverValue[MobileServiceSystemColumns.Version];
+                    //    if (error is MobileServiceConflictException) // change operation from Insert to Update
+                    //    {
+                    //        tryOperation = async () => await operation.Table.UpdateAsync(operation.Item) as JObject;
+                    //    }
+                    //    continue;
+                    //}
+                    //else if (command.Label == SERVER_VERSION)
+                    //{
+                    //    return (JObject)serverValue;
+                    //}
+                    //else
+                    //{
+                    //    operation.AbortPush();
+                    //}
                 }
             } while (error != null);
 

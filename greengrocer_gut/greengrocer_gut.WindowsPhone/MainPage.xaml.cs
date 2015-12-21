@@ -34,6 +34,15 @@ namespace greengrocer_gut
             {
                 errorString = "Internal Push operation during pull request failed because of sync errors: " +
                   ex.PushResult.Errors.Count + " errors, message: " + ex.Message;
+
+                foreach (var conflictItem in ex.PushResult.Errors)
+                {
+                    var serverItem = conflictItem.Item.ToObject<Groceries>();
+                    serverItem.Version = conflictItem.Item.GetValue("__version").ToObject<string>();
+                    var localItem = await FindGroceryById(serverItem.Id);
+
+                    await ResolveConflict(localItem, serverItem);
+                }
             }
             catch (Exception ex)
             {
@@ -67,6 +76,15 @@ namespace greengrocer_gut
             {
                 errorString = "Push failed because of sync errors: " +
                   ex.PushResult.Errors.Count + " errors, message: " + ex.Message;
+
+                foreach(var conflictItem in ex.PushResult.Errors)
+                {
+                    var serverItem = conflictItem.Result.ToObject<Groceries>();
+                    serverItem.Version = conflictItem.Result.GetValue("__version").ToObject<string>();
+                    var localItem = await FindGroceryById(serverItem.Id);
+
+                    await ResolveConflict(localItem, serverItem);
+                }
             }
             catch (Exception ex)
             {
@@ -82,6 +100,12 @@ namespace greengrocer_gut
             }
 
             ButtonPush.IsEnabled = true;
+        }
+
+        private async Task<Groceries> FindGroceryById(string itemId)
+        {
+            var list = await _groceriesTable.Where(x => x.Id == itemId).ToListAsync();
+            return list.Count > 0 ? list.FirstOrDefault() : null;
         }
     }
 }

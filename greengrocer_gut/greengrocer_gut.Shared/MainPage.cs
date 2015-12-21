@@ -62,12 +62,10 @@ namespace greengrocer_gut
         {
             await _groceriesTable.InsertAsync(todoItem);
             _items.Add(todoItem);
-            //await SyncAsync(); // offline sync
         }
 
         private async Task<Groceries> FindGroceryByName(string itemName)
         {
-            //await SyncAsync(); // offline sync
             var list = await _groceriesTable.Where(x => x.Name == itemName && x.OwnerUserId ==_user.UserId).ToListAsync();
             return list.Count > 0 ? list.FirstOrDefault() : null;
         }
@@ -100,7 +98,6 @@ namespace greengrocer_gut
         private async Task UpdateCheckedTodoItem(Groceries item)
         {
             await _groceriesTable.UpdateAsync(item);
-            //await SyncAsync(); // offline sync
 
             _items.Remove(item);
             ListItems.Focus(FocusState.Unfocused);
@@ -129,6 +126,11 @@ namespace greengrocer_gut
             {
                 try
                 {
+                    if(existingItem.Before == 0)
+                    {
+                        existingItem.Before = existingItem.Quantity;
+                    }
+
                     var quantity = Convert.ToInt32(QuantityInput.Text);
                     existingItem.Quantity = quantity;
                 }
@@ -138,17 +140,8 @@ namespace greengrocer_gut
                     return;
                 }
 
-                if (existingItem.Quantity > 0)
-                {
-                    await UpdateCheckedTodoItem(existingItem);
-                }
-                else
-                {
-                    _items.Remove(existingItem);
-                    await _groceriesTable.DeleteAsync(existingItem);
-                }
-
-                await _groceriesTable.UpdateAsync(existingItem);
+                await UpdateCheckedTodoItem(existingItem);
+                return;
             }
 
             try
@@ -156,9 +149,8 @@ namespace greengrocer_gut
                 var quantity = Convert.ToInt32(QuantityInput.Text);
                 if (quantity <= 0) return;
 
-                var todoItem = new Groceries {Id = Guid.NewGuid().ToString("N"), Name = TextInput.Text, Quantity = quantity, OwnerUserId = _user.UserId, Before = 0};
+                var todoItem = new Groceries {Id = Guid.NewGuid().ToString("N"), Name = TextInput.Text, Quantity = quantity, OwnerUserId = _user.UserId, Before = quantity};
                 await InsertTodoItem(todoItem);
-                //await SyncAsync(); // offline sync
             }
             catch (Exception) {}
             finally
@@ -195,6 +187,10 @@ namespace greengrocer_gut
 
             try
             {
+                if (groceryItem.Before == 0)
+                {
+                    groceryItem.Before = groceryItem.Quantity;
+                }
                 groceryItem.Quantity = groceryItem.Quantity + 1;
             }
             catch (Exception)
@@ -214,6 +210,10 @@ namespace greengrocer_gut
 
             try
             {
+                if (groceryItem.Before == 0)
+                {
+                    groceryItem.Before = groceryItem.Quantity;
+                }
                 groceryItem.Quantity = groceryItem.Quantity - 1;
             }
             catch (Exception)
@@ -221,16 +221,7 @@ namespace greengrocer_gut
                 return;
             }
 
-            if (groceryItem.Quantity > 0)
-            {
-                await UpdateCheckedTodoItem(groceryItem);
-            }
-            else
-            {
-                _items.Remove(groceryItem);
-                await _groceriesTable.DeleteAsync(groceryItem);
-                //await SyncAsync(); // offline sync
-            }
+            await UpdateCheckedTodoItem(groceryItem);
         }
 
         private async void GroceryItemQuantityChange(object sender, RoutedEventArgs routedEventArgs)
@@ -241,6 +232,10 @@ namespace greengrocer_gut
 
             try
             {
+                if (groceryItem.Before == 0)
+                {
+                    groceryItem.Before = groceryItem.Quantity;
+                }
                 var quantity = Convert.ToInt32(textBox.Text);
                 groceryItem.Quantity = quantity;
             }
@@ -250,16 +245,7 @@ namespace greengrocer_gut
                 return;
             }
 
-            if (groceryItem.Quantity > 0)
-            {
-                await UpdateCheckedTodoItem(groceryItem);
-            }
-            else
-            {
-                _items.Remove(groceryItem);
-                await _groceriesTable.DeleteAsync(groceryItem);
-                //await SyncAsync(); // offline sync
-            }
+            await UpdateCheckedTodoItem(groceryItem);
         }
 
         private async Task InitLocalStoreAsync()
@@ -268,7 +254,8 @@ namespace greengrocer_gut
             {
                 var store = new MobileServiceSQLiteStore("greengrocer-gut_db.db");
                 store.DefineTable<Groceries>();
-                await App.MobileService.SyncContext.InitializeAsync(store, new SyncHandler(App.MobileService));
+                //await App.MobileService.SyncContext.InitializeAsync(store, new SyncHandler(App.MobileService));
+                await App.MobileService.SyncContext.InitializeAsync(store);
             }
 
             //await SyncAsync();
@@ -303,6 +290,18 @@ namespace greengrocer_gut
                 MessageDialog d = new MessageDialog(errorString);
                 await d.ShowAsync();
             }
+        }
+
+        private async Task ResolveConflict(Groceries localVersion, Groceries azuresVersion)
+        {
+            localVersion.Version = azuresVersion.Version;
+            
+            // this way we have a number to add to , sign will be good
+            int delta = localVersion.Quantity - localVersion.Before;
+            localVersion.Quantity = azuresVersion.Quantity + delta;
+            localVersion.Before = 0;
+
+            await _groceriesTable.UpdateAsync(localVersion);
         }
     }
 }
