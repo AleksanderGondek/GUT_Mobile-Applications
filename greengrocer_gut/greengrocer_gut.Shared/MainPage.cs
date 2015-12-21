@@ -140,7 +140,16 @@ namespace greengrocer_gut
                     return;
                 }
 
-                await UpdateCheckedTodoItem(existingItem);
+                if(existingItem.Quantity > 0)
+                {
+                    await UpdateCheckedTodoItem(existingItem);
+                }
+                else
+                {
+                    _items.Remove(existingItem);
+                    await _groceriesTable.DeleteAsync(existingItem);
+                }
+
                 return;
             }
 
@@ -221,7 +230,15 @@ namespace greengrocer_gut
                 return;
             }
 
-            await UpdateCheckedTodoItem(groceryItem);
+            if (groceryItem.Quantity > 0)
+            {
+                await UpdateCheckedTodoItem(groceryItem);
+            }
+            else
+            {
+                _items.Remove(groceryItem);
+                await _groceriesTable.DeleteAsync(groceryItem);
+            }
         }
 
         private async void GroceryItemQuantityChange(object sender, RoutedEventArgs routedEventArgs)
@@ -245,7 +262,15 @@ namespace greengrocer_gut
                 return;
             }
 
-            await UpdateCheckedTodoItem(groceryItem);
+            if (groceryItem.Quantity > 0)
+            {
+                await UpdateCheckedTodoItem(groceryItem);
+            }
+            else
+            {
+                _items.Remove(groceryItem);
+                await _groceriesTable.DeleteAsync(groceryItem);
+            }
         }
 
         private async Task InitLocalStoreAsync()
@@ -294,12 +319,23 @@ namespace greengrocer_gut
 
         private async Task ResolveConflict(Groceries localVersion, Groceries azuresVersion)
         {
+            if(azuresVersion == null)
+            {
+                await _groceriesTable.DeleteAsync(localVersion);
+                return;
+            }
+            
             localVersion.Version = azuresVersion.Version;
             
             // this way we have a number to add to , sign will be good
             int delta = localVersion.Quantity - localVersion.Before;
             localVersion.Quantity = azuresVersion.Quantity + delta;
             localVersion.Before = 0;
+
+            if(localVersion.Quantity <= 0)
+            {
+
+            }
 
             await _groceriesTable.UpdateAsync(localVersion);
         }

@@ -37,8 +37,11 @@ namespace greengrocer_gut
 
                 foreach (var conflictItem in ex.PushResult.Errors)
                 {
-                    var serverItem = conflictItem.Item.ToObject<Groceries>();
-                    serverItem.Version = conflictItem.Item.GetValue("__version").ToObject<string>();
+                    var serverItem = conflictItem.Result.ToObject<Groceries>();
+                    if (serverItem != null)
+                    {
+                        serverItem.Version = conflictItem.Result.GetValue("__version").ToObject<string>();
+                    }
                     var localItem = await FindGroceryById(serverItem.Id);
 
                     await ResolveConflict(localItem, serverItem);
@@ -80,7 +83,11 @@ namespace greengrocer_gut
                 foreach(var conflictItem in ex.PushResult.Errors)
                 {
                     var serverItem = conflictItem.Result.ToObject<Groceries>();
-                    serverItem.Version = conflictItem.Result.GetValue("__version").ToObject<string>();
+                    if(serverItem != null)
+                    {
+                        serverItem.Version = conflictItem.Result.GetValue("__version").ToObject<string>();
+                    }
+
                     var localItem = await FindGroceryById(serverItem.Id);
 
                     await ResolveConflict(localItem, serverItem);
